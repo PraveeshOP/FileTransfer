@@ -2,19 +2,21 @@
 
 from socket import *
 
-def main():
-    serverName = '0.0.0.0'
-    serverPort = 12000
-    serverSocket = socket(AF_INET, SOCK_DGRAM)
-    serverSocket.bind((serverName, serverPort))
+class Server:
 
-    print('The server is ready to receive.......')
+    def main(ip, port):
+        serverName = ip
+        serverPort = port
+        serverSocket = socket(AF_INET, SOCK_DGRAM)
+        serverSocket.bind((serverName, serverPort))
 
-    message, clientAddress = serverSocket.recvfrom(2048)
-    print(f"Received message from {clientAddress}: {message.decode()}")
-    modifiedMessage = message.decode().upper()
-    serverSocket.sendto(modifiedMessage.encode(), clientAddress)
-    serverSocket.close()
+        print('The server is ready to receive.......')
 
-if __name__ == '__main__':
-    main()
+        message, clientAddress = serverSocket.recvfrom(2048)
+        print(f"Received message from {clientAddress}: {message.decode()}")
+        modifiedMessage = message.decode().upper()
+        serverSocket.sendto(modifiedMessage.encode(), clientAddress)
+        serverSocket.close()
+
+    if __name__ == '__main__':
+        main()

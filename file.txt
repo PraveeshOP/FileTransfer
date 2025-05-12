@@ -1,1 +1,11 @@
 Hello this file is just for fun hai. Don't take it seriously hehe haha. Gu Gu Ga Ga.
+AF_INET
+b
+clientd
+encodef
+Gah
+ifj
+k
+lowercasem
+__name__o
+print
