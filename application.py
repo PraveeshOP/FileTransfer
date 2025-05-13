@@ -23,7 +23,7 @@ def main():
         Server.main(args.IP, args.port)
     elif args.client:
         # If -c is provided, run the Client's main method
-        # Check if filename is provided, if it is not provided then give error messege and return
+        # Check if filename is provided, if it is not provided then give error message and return
         if not args.filename:
             print("Error: Please provide a filename using the -f or --filename argument.")
             return

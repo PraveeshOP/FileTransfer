@@ -2,40 +2,31 @@ from socket import *
 
 class Client:
 
-    def openfile(filename):
-        try:
-            with open(filename, 'r') as file:
-                data = file.read()
-            return data
-        except FileNotFoundError:
-            print(f"Error: The file {filename} was not found.")
-            return None
-        except IOError:
-            print(f"Error: Could not read the file {filename}.")
-            return None
-        except Exception as e:
-            print(f"An unexpected error occurred: {e}")
-            return None
+    @staticmethod
+    def main(filename, serverIP, serverPort):
+        clientSocket = socket(AF_INET, SOCK_DGRAM)  # Create a UDP socket
+        serverSocket = (serverIP, serverPort)
+        print("Connection Establishment Phase: \n")
+        
+        #SYN packet
+        syn = "SYN packet is sent"
+        clientSocket.sendto(syn.encode(), serverSocket)
+        print(syn)
 
-    def main(fileName, ip, port):
+        while True:
+            response, serverAddress = clientSocket.recvfrom(1024)
+            response = response.decode()
+            if (response == "SYN-ACK packet is sent"):
+                print("SYN-ACK packet is received")
+                # Send a response back to the server
+                clientSocket.sendto("ACK packet is sent".encode(), serverSocket)
+                print("ACK packet is sent")
 
-        serverIP = ip
-        serverPort = port
-
-        clientSocket = socket(AF_INET, SOCK_DGRAM)
-
-        message = input('Input lowercase sentence: ')
-
-        serverAddress = (serverIP, serverPort)
-
-        clientSocket.sendto(message.encode(), serverAddress)
-
-        modifiedMessage, serverAddress = clientSocket.recvfrom(2048)
-
-        print(f"Message received from {serverAddress}: {modifiedMessage.decode()}")
+            elif (response == "Connection established"):
+                print("Connection established\n")
+                break
 
         clientSocket.close()
 
-
-    if __name__ == '__main__':
-        main()
+if __name__ == "__main__":
+    Client.main()
