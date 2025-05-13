@@ -19,14 +19,15 @@ args = parser.parse_args()
 
 def main():
     if args.server:
+        # If -s is provided, run the Server's main method
         Server.main(args.IP, args.port)
-        # Call your Server.main() here
     elif args.client:
+        # If -c is provided, run the Client's main method
+        # Check if filename is provided, if it is not provided then give error messege and return
         if not args.filename:
             print("Error: Please provide a filename using the -f or --filename argument.")
             return
         Client.main(args.filename, args.IP, args.port)
-        # Call your Client.main() here
     else:
         print("Error: Please specify a role. Use -s for server or -c for client. Use -h for help.")
 

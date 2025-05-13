@@ -1,6 +1,8 @@
 # UDP server
 
 from socket import *
+import _thread as thread
+import sys
 
 class Server:
 
