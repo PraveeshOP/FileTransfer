@@ -1,7 +1,17 @@
 from socket import *
 from packets import Packets
+from datetime import datetime
 
 class Client:
+
+    @staticmethod
+    def now():
+        # Get the current time
+        now = datetime.now()
+
+        # Format the time to include hours, minutes, seconds, and microseconds
+        formatted_time = now.strftime("%H:%M:%S") + f".{now.microsecond}"
+        return formatted_time
 
     @staticmethod
     def main(filename, serverIP, serverPort):
@@ -34,7 +44,27 @@ class Client:
                     break
             # File Transfer Phase
             print("Data Transfer:\n")
-            
+
+            with open(filename, "rb") as file:
+                sequence_number = 1
+                while True:
+                    # Read 992 bytes of data from the file
+                    data = file.read(992)
+                    if not data:
+                        break
+                    # Create a packet with the data
+                    acknowledgment_number = 0
+                    window = 0
+                    flags = 0
+                    # msg now holds a packet, including our custom header and data
+                    msg = Packets.create_packet(sequence_number, acknowledgment_number, flags, window, data)
+                    # Print the data and increment the sequence number
+                    sequence_number += 1
+                    # Send the packet to the server
+                    clientSocket.sendto(msg, serverSocket)
+                    print(f"{Client.now()} -- packet with seq = {sequence_number} is sent")
+
+            clientSocket.sendto(data, serverSocket)            
 
         except Exception as KeyboardInterrupt:
             print("Connection Terminated")

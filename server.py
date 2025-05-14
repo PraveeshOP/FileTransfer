@@ -8,13 +8,13 @@ class Server:
         """
         Handles a single client request.
         """
-        # Unpack the received packet
+        # Unpack the received packet_header
         packet_header = data[:8]
         seq, ack, flags, win = Packets.parse_header(packet_header)
         
 		# Check the flags to determine the type of packet received
         syn, ack, fin = Packets.parse_flags(flags)
-        
+
         if (syn == 8):
             print("SYN packet is received")
             # Send a response back to the client
@@ -26,19 +26,24 @@ class Server:
             print("ACK packet is received")
             print("Connection established\n")
             
+        """elif (fin == 1):  # Assuming 'fin' is a flag indicating a FIN packet
+            print("FIN packet is received")
+            # Send a response back to the client
+            fin_ack = Packets.create_packet(0, 0, 4, 0, b'')
+            serverSocket.sendto(fin_ack, clientAddress)
+            print("FIN-ACK packet is sent")"""
+        
 
+		#After the establishment of the connection, we can send and receive data
+        while True:
             
-        """if response == "SYN packet is sent":
-            print("SYN packet is received")
-            # Send a response back to the client
-            serverSocket.sendto("SYN-ACK packet is sent".encode(), clientAddress)
-            print("SYN-ACK packet is sent")
-        elif response == "ACK packet is sent":
-            print("ACK packet is received")
-            # Send a response back to the client
-            serverSocket.sendto("Connection established".encode(), clientAddress)
-            print("Connection established")
-		"""
+            # Receive data from the client
+            packet_data = data[8:]  # Extract the data part of the packet
+            if not packet_data:
+                break
+			# Process the received data
+            print(f"Received data: {packet_data}")
+
     @staticmethod
     def main(serverIP, serverPort):
         serverSocket = socket(AF_INET, SOCK_DGRAM)  # Create a UDP socket
