@@ -42,6 +42,7 @@ class Client:
                     print("ACK packet is sent")
                     print("Connection established\n")
                     break
+
             # File Transfer Phase
             print("Data Transfer:\n")
 
@@ -51,6 +52,11 @@ class Client:
                     # Read 992 bytes of data from the file
                     data = file.read(992)
                     if not data:
+                        print("DATA Finished\n")
+                        print("Connection Teardown:\n")
+                        fin = Packets.create_packet(0, 0, 2, 0, b'')
+                        clientSocket.sendto(fin, serverSocket)
+                        print("FIN packet is sent")
                         break
                     # Create a packet with the data
                     acknowledgment_number = 0
@@ -63,8 +69,23 @@ class Client:
                     # Send the packet to the server
                     clientSocket.sendto(msg, serverSocket)
                     print(f"{Client.now()} -- packet with seq = {sequence_number} is sent")
+            
+            while True:
+                # Receive data from the server
+                packet_header, serverAddress = clientSocket.recvfrom(1024)
 
-            clientSocket.sendto(data, serverSocket)            
+                # Unpack the received packet
+                seq, ack, flags, win = Packets.parse_header(packet_header)
+
+                # Check the flags to determine the type of packet received
+                syn, ack, fin = Packets.parse_flags(flags)
+
+                if (fin == 2 and ack == 4):
+                    print("FIN-ACK packet is received")
+                    # Send a response back to the server
+                    print("Connection Closes\n")
+                    break 
+         
 
         except Exception as KeyboardInterrupt:
             print("Connection Terminated")
