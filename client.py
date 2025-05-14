@@ -14,9 +14,7 @@ class Client:
         return formatted_time
 
     @staticmethod
-    def main(filename, serverIP, serverPort):
-
-        #clientSocket.settimeout(1)  # Set a timeout for the socket operations
+    def main(filename, serverIP, serverPort, windowSize):
         
         active_connection = True # if the connection is active
 
@@ -30,6 +28,7 @@ class Client:
         print("SYN packet is sent")
 
         try:
+            #clientSocket.settimeout(0.4)  # Set a timeout for the socket operations
             while True:
                 # Receive data from the server
                 packet_from_server, serverAddress = clientSocket.recvfrom(1000)
@@ -57,6 +56,7 @@ class Client:
 
             with open(filename, "rb") as file:
                 required_ack = 1
+                sliding_window_size = 1
                 while (active_connection):
                     # Receive data from the server
                     packet_from_server, serverAddress = clientSocket.recvfrom(1000)
@@ -90,7 +90,6 @@ class Client:
                         #Increment the required_ack
                         required_ack += 1
                         print(f"Requested packet {required_ack}")
-                        continue
             
             while True:
                 # Receive data from the server

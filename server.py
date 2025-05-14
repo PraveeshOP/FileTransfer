@@ -18,11 +18,12 @@ class Server:
         serverSocket = socket(AF_INET, SOCK_DGRAM)  # Create a UDP socket
         serverSocket.bind((serverIP, serverPort))  # Bind to the specified IP and port
 
-        #serverSocket.settimeout(1)  # Set a timeout for the socket operations
+        #
 
         try:
             required_seq = 1 # Initialize the expected sequence number
             totalfile = b"" # Initialize an empty byte string to store the received file data
+            serverWindow = 15 # Initialize the server window size
             while True:
 
                 packet, clientAddress = serverSocket.recvfrom(1000)  # Receive data from the client
@@ -62,10 +63,9 @@ class Server:
                     print(f"{Server.now()} -- packet {c_sequence_number} is received")
                     print(f"{Server.now()} -- sending ACK for packet {c_sequence_number}")
                     required_seq += 1
-                    msg = Packets.create_packet(c_acknowledgment_number, required_seq, 0, 0, b'')
+                    msg = Packets.create_packet(c_acknowledgment_number, required_seq, 0, serverWindow, b'')
                     serverSocket.sendto(msg, clientAddress)
                     print("Requested packet ", required_seq)
-                    continue
             
             print("Received file data:", totalfile.decode())
 

@@ -15,6 +15,9 @@ parser.add_argument('-f', '--filename', metavar='', type=str, help="Please provi
 parser.add_argument('-i', '--IP', metavar='', type=str, required=True, help="Please provide the IP address of the server")
 parser.add_argument('-p', '--port', metavar='', type=int, required=True, help="Please provide the port number of the server")
 
+# Required window size for the client
+parser.add_argument('-w', '--window', metavar='', type=int, help="Please provide the window size")
+
 args = parser.parse_args()
 
 def main():
@@ -27,7 +30,7 @@ def main():
         if not args.filename:
             print("Error: Please provide a filename using the -f or --filename argument.")
             return
-        Client.main(args.filename, args.IP, args.port)
+        Client.main(args.filename, args.IP, args.port, args.window)
     else:
         print("Error: Please specify a role. Use -s for server or -c for client. Use -h for help.")
 
