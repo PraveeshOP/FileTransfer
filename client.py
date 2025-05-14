@@ -15,6 +15,11 @@ class Client:
 
     @staticmethod
     def main(filename, serverIP, serverPort):
+
+        #clientSocket.settimeout(1)  # Set a timeout for the socket operations
+        
+        active_connection = True # if the connection is active
+
         clientSocket = socket(AF_INET, SOCK_DGRAM)  # Create a UDP socket
         serverSocket = (serverIP, serverPort)
         print("Connection Establishment Phase: \n")
@@ -22,14 +27,18 @@ class Client:
         # Send a SYN packet to the server
         syn = Packets.create_packet(0, 0, 8, 0, b'')
         clientSocket.sendto(syn, serverSocket)
+        print("SYN packet is sent")
 
         try:
             while True:
                 # Receive data from the server
-                packet_header, serverAddress = clientSocket.recvfrom(1024)
+                packet_from_server, serverAddress = clientSocket.recvfrom(1000)
+
+                #Divide the packet into header and data
+                packet_header = packet_from_server[:8]
 
                 # Unpack the received packet
-                seq, ack, flags, win = Packets.parse_header(packet_header)
+                sequence_number, acknowledgment_number, flags, window = Packets.parse_header(packet_header)
 
                 # Check the flags to determine the type of packet received
                 syn, ack, fin = Packets.parse_flags(flags)
@@ -47,8 +56,17 @@ class Client:
             print("Data Transfer:\n")
 
             with open(filename, "rb") as file:
-                sequence_number = 1
-                while True:
+                required_ack = 1
+                while (active_connection):
+                    # Receive data from the server
+                    packet_from_server, serverAddress = clientSocket.recvfrom(1000)
+
+                    #Divide the packet into header and data
+                    packet_header = packet_from_server[:8]
+
+                    # Unpack the received packet
+                    s_sequence_number, s_acknowledgment_number, s_flags, s_window = Packets.parse_header(packet_header)
+
                     # Read 992 bytes of data from the file
                     data = file.read(992)
                     if not data:
@@ -57,22 +75,26 @@ class Client:
                         fin = Packets.create_packet(0, 0, 2, 0, b'')
                         clientSocket.sendto(fin, serverSocket)
                         print("FIN packet is sent")
+                        active_connection = False
                         break
-                    # Create a packet with the data
-                    acknowledgment_number = 0
-                    window = 0
-                    flags = 0
-                    # msg now holds a packet, including our custom header and data
-                    msg = Packets.create_packet(sequence_number, acknowledgment_number, flags, window, data)
-                    # Print the data and increment the sequence number
-                    sequence_number += 1
-                    # Send the packet to the server
-                    clientSocket.sendto(msg, serverSocket)
-                    print(f"{Client.now()} -- packet with seq = {sequence_number} is sent")
+                    
+                    elif (required_ack == s_acknowledgment_number):
+                        # msg now holds a packet, including our custom header and data
+                        print("Acknowledgment number is ", s_acknowledgment_number)
+
+                        msg = Packets.create_packet(s_acknowledgment_number, s_acknowledgment_number-1, 0, 0, data)
+                        # Send the packet to the server
+                        clientSocket.sendto(msg, serverSocket)
+                        print(f"{Client.now()} -- packet with seq = {s_acknowledgment_number} is sent")
+                        
+                        #Increment the required_ack
+                        required_ack += 1
+                        print(f"Requested packet {required_ack}")
+                        continue
             
             while True:
                 # Receive data from the server
-                packet_header, serverAddress = clientSocket.recvfrom(1024)
+                packet_header, serverAddress = clientSocket.recvfrom(1000)
 
                 # Unpack the received packet
                 seq, ack, flags, win = Packets.parse_header(packet_header)
@@ -85,9 +107,8 @@ class Client:
                     # Send a response back to the server
                     print("Connection Closes\n")
                     break 
-         
 
-        except Exception as KeyboardInterrupt:
+        except KeyboardInterrupt:
             print("Connection Terminated")
 
         clientSocket.close()
