@@ -51,6 +51,7 @@ class Client:
             with open(filename, "rb") as file:
                 starting_sequence = 1
                 next_seq = 1
+                previous_seq = 0 #This is used to check the packet loss
                 buffer = {} #This is the dictionary to hold the transmitted data that has not been acknowledge, it is used for the retransmission
                 file_complete = False #Boolean to know weather the file is completely transferred or not
 
@@ -61,10 +62,10 @@ class Client:
                         if not data:
                             file_complete = True
                             break
-                        packet = Packets.create_packet(next_seq, 0, 0, 0, data) #Creating the packet with the sequence number and data from the file
+                        packet = Packets.create_packet(next_seq, next_seq-1, 0, 0, data) #Creating the packet with the sequence number and data from the file
                         clientSocket.sendto(packet, serverSocket) #Sending the data to the server socket
-                        print(f"{Client.now()} -- packet with seq = {next_seq} is sent, sliding window = {list(range(starting_sequence, next_seq + 1))}")
                         buffer[next_seq] = packet #The packets are saved in the buffer until they are acknowledge
+                        print(f"{Client.now()} -- packet with seq = {next_seq} is sent, sliding window = {list(buffer.keys())}")
                         next_seq += 1
 
                     try:
@@ -73,22 +74,27 @@ class Client:
                         s_sequence_number, s_acknowledgment_number, flags, s_window = Packets.parse_header(packet_from_server[:8])
                         syn, ack, fin = Packets.parse_flags(flags)
 
-                        if (ack == 4):
+                        if (ack == 4 and previous_seq != s_acknowledgment_number):
                             print(f"{Client.now()} -- ACK for packet = {s_acknowledgment_number} is received")
                             while (starting_sequence <= s_acknowledgment_number): #The loop to check of the sent sequence number is acknowledged by the server.
                                 #If the sequence number is acknowledged the sequence number is removed from the buffer.
                                 buffer.pop(starting_sequence, None) #None is used to handle the error if the key does not exist.  
                                 starting_sequence += 1 #Incrementing the starting_sequence to check the acknowledgment number sent by the server
+                                previous_seq += 1
+                        elif (previous_seq == s_acknowledgment_number):
+                            continue #If we get the acknolwgdement of the previous packet retransmitt the packet
+
                     except timeout:
                         # Resend all packets in the sliding window if the sent packets are not acknowleged until the occurance of the timeout.
-                        print("Timeout: Resending packets in window")
+                        print(f"{Client.now()} -- RTO occured")
                         #If the sequence number is not acknowleged
                         for seq in range(starting_sequence, next_seq): #The client retransmitts all the packects in the sliding window or buffer until the packets are acknowleged 
                             clientSocket.sendto(buffer[seq], serverSocket) #buffer[seq] contains all the packets present in the buffer
                             print(f"{Client.now()} -- retransmitting packet with seq = {seq}")
 
             # Connection Teardown
-            print("Connection Teardown:\n")
+            print("Data Finished")
+            print("\nConnection Teardown:\n")
             fin = Packets.create_packet(0, 0, 2, 0, b'')
             clientSocket.sendto(fin, serverSocket)
             print("FIN packet is sent")
