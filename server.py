@@ -1,6 +1,7 @@
 from socket import *
 from packets import Packets
 from datetime import datetime
+import sys
 
 class Server:
     
@@ -15,62 +16,75 @@ class Server:
 
     @staticmethod
     def main(serverIP, serverPort):
-        serverSocket = socket(AF_INET, SOCK_DGRAM)  # Create a UDP socket
-        serverSocket.bind((serverIP, serverPort))  # Bind to the specified IP and port
-
-        #
-
         try:
-            required_seq = 1 # Initialize the expected sequence number
-            totalfile = b"" # Initialize an empty byte string to store the received file data
-            serverWindow = 15 # Initialize the server window size
-            while True:
+            serverSocket = socket(AF_INET, SOCK_DGRAM)
+            serverSocket.bind((serverIP, serverPort))
 
-                packet, clientAddress = serverSocket.recvfrom(1000)  # Receive data from the client
-                # Unpack the received packet_header
+            required_seq = 1  # Expected sequence number
+            totalfile = b""  # Buffer to store received file data
+            serverWindow = 15  # Server's advertised window size
+            start_time = None  # Start time for throughput calculation
+            total_data_received = 0  # Total data received in bytes
+
+            while True:
+                packet, clientAddress = serverSocket.recvfrom(1000)
                 packet_header = packet[:8]
                 c_sequence_number, c_acknowledgment_number, c_flags, c_window = Packets.parse_header(packet_header)
+                packet_data = packet[8:]  # Extract data from the packet
 
-                #packet data
-                packet_data = packet[8:]  # Extract the data part of the packet
-                
-                # Check the flags to determine the type of packet received
+                # Parse flags
                 syn, ack, fin = Packets.parse_flags(c_flags)
 
-                if (syn == 8):
+                if (syn == 8):  # SYN packet received
                     print("SYN packet is received")
-                    # Send a response back to the client
-                    syn_ack = Packets.create_packet(0, 0, 12, 0, b'')
+                    syn_ack = Packets.create_packet(0, 0, 12, serverWindow, b'')
                     serverSocket.sendto(syn_ack, clientAddress)
                     print("SYN-ACK packet is sent")
-                
-                elif (ack == 4):
+
+                elif (ack == 4 and c_sequence_number == 0):  # ACK for SYN-ACK
                     print("ACK packet is received")
                     print("Connection established\n")
-                    first_packet_req = Packets.create_packet(0, 1, 0, 0, b'')
-                    serverSocket.sendto(first_packet_req, clientAddress)
+                    start_time = datetime.now()  # Start the timer for throughput calculation
 
-                elif (fin == 2):
+                elif (fin == 2):  # FIN packet received
                     print("\nFIN packet is received")
-                    # Send a response back to the client
                     fin_ack = Packets.create_packet(0, 0, 6, 0, b'')
                     serverSocket.sendto(fin_ack, clientAddress)
                     print("FIN-ACK packet is sent")
                     break
 
-                elif (c_sequence_number == required_seq):
-                    totalfile += packet_data # Append the received data to the total file data
+                elif (c_sequence_number == required_seq):  # Correct packet received
+                    totalfile += packet_data
+                    total_data_received += len(packet_data)
                     print(f"{Server.now()} -- packet {c_sequence_number} is received")
-                    print(f"{Server.now()} -- sending ACK for packet {c_sequence_number}")
+                    print(f"{Server.now()} -- sending ack for the received {c_sequence_number}")
                     required_seq += 1
-                    msg = Packets.create_packet(c_acknowledgment_number, required_seq, 0, serverWindow, b'')
-                    serverSocket.sendto(msg, clientAddress)
-                    print("Requested packet ", required_seq)
-            
-            print("Received file data:", totalfile.decode())
+                    ack_packet = Packets.create_packet(0, required_seq, 4, serverWindow, b'')
+                    serverSocket.sendto(ack_packet, clientAddress)
+
+                else:  # Out-of-order or duplicate packet
+                    print(f"{Server.now()} -- out-of-order or duplicate packet {c_sequence_number} is received")
+                    # Resend ACK for the last correctly received packet
+                    ack_packet = Packets.create_packet(0, required_seq, 4, serverWindow, b'')
+                    serverSocket.sendto(ack_packet, clientAddress)
+
+            # Write the received file to disk
+            with open("output_image.jpg", "wb") as output_file:
+                output_file.write(totalfile)
+
+            # Calculate throughput
+            end_time = datetime.now()
+            run_time = (end_time - start_time).total_seconds()
+            throughput = (total_data_received * 8) / (run_time * 1_000_000)  # Mbps
+            print(f"\nThe throughput is {throughput:.2f} Mbps")
+            print("Connection Closes\n")
 
         except KeyboardInterrupt:
             print("\nKeyboard interrupt received, shutting down the server.")
-
-if __name__ == "__main__":
-    Server.main()
+            sys.exit()
+        except Exception as e:
+            print(f"Error: {e}")
+            sys.exit()
+        finally:
+            serverSocket.close()
+            sys.exit()

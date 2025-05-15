@@ -1,6 +1,7 @@
 from socket import *
 from packets import Packets
 from datetime import datetime
+import sys
 
 class Client:
 
@@ -15,102 +16,106 @@ class Client:
 
     @staticmethod
     def main(filename, serverIP, serverPort, windowSize):
-        
-        active_connection = True # if the connection is active
-
-        clientSocket = socket(AF_INET, SOCK_DGRAM)  # Create a UDP socket
-        serverSocket = (serverIP, serverPort)
-        print("Connection Establishment Phase: \n")
-        
-        # Send a SYN packet to the server
-        syn = Packets.create_packet(0, 0, 8, 0, b'')
-        clientSocket.sendto(syn, serverSocket)
-        print("SYN packet is sent")
-
         try:
-            #clientSocket.settimeout(0.4)  # Set a timeout for the socket operations
+            clientSocket = socket(AF_INET, SOCK_DGRAM)
+            clientSocket.settimeout(0.4)  # Set timeout to 400ms
+            serverSocket = (serverIP, serverPort)
+            print("\nConnection Establishment Phase:\n")
+
+            # Send SYN packet
+            syn = Packets.create_packet(0, 0, 8, 0, b'')
+            clientSocket.sendto(syn, serverSocket)
+            print("SYN packet is sent")
+
             while True:
-                # Receive data from the server
-                packet_from_server, serverAddress = clientSocket.recvfrom(1000)
+                try:
+                    packet_from_server, _ = clientSocket.recvfrom(1000)
+                    s_sequence_number, s_acknowledgment_number, flags, s_window = Packets.parse_header(packet_from_server[:8])
+                    syn, ack, fin = Packets.parse_flags(flags)
 
-                #Divide the packet into header and data
-                packet_header = packet_from_server[:8]
-
-                # Unpack the received packet
-                sequence_number, acknowledgment_number, flags, window = Packets.parse_header(packet_header)
-
-                # Check the flags to determine the type of packet received
-                syn, ack, fin = Packets.parse_flags(flags)
-
-                if (syn == 8 and ack == 4):
-                    print("SYN-ACK packet is received")
-                    # Send a response back to the server
-                    ack = Packets.create_packet(0, 0, 4, 0, b'')
-                    clientSocket.sendto(ack, serverSocket)
-                    print("ACK packet is sent")
-                    print("Connection established\n")
-                    break
+                    if syn == 8 and ack == 4:
+                        print("SYN-ACK packet is received")
+                        # Send ACK packet
+                        s_acknowledgment_number = Packets.create_packet(0, 0, 4, 0, b'')
+                        clientSocket.sendto(s_acknowledgment_number, serverSocket)
+                        print("ACK packet is sent")
+                        print("Connection established\n")
+                        windowSize = min(windowSize, s_window)  # Adjusting window size, the minimum among the server window and the client window is used
+                        break
+                except timeout:
+                    print("\nConnection failed\n")
+                    sys.exit()
 
             # File Transfer Phase
             print("Data Transfer:\n")
-
             with open(filename, "rb") as file:
-                required_ack = 1
-                sliding_window_size = 1
-                while (active_connection):
-                    # Receive data from the server
-                    packet_from_server, serverAddress = clientSocket.recvfrom(1000)
+                starting_sequence = 1
+                next_seq = 1
+                buffer = {} #This is the dictionary to hold the transmitted data that has not been acknowledge, it is used for the retransmission
+                file_complete = False #Boolean to know weather the file is completely transferred or not
 
-                    #Divide the packet into header and data
-                    packet_header = packet_from_server[:8]
+                while not file_complete or buffer: #This loops checks if the file is empty or the buffer is empty
+                    # Send packets within the window
+                    while (next_seq < starting_sequence + windowSize and not file_complete): #This loops sends the chunks according to the window size and also checks if the file is complete
+                        data = file.read(992)
+                        if not data:
+                            file_complete = True
+                            break
+                        packet = Packets.create_packet(next_seq, 0, 0, 0, data) #Creating the packet with the sequence number and data from the file
+                        clientSocket.sendto(packet, serverSocket) #Sending the data to the server socket
+                        print(f"{Client.now()} -- packet with seq = {next_seq} is sent, sliding window = {list(range(starting_sequence, next_seq + 1))}")
+                        buffer[next_seq] = packet #The packets are saved in the buffer until they are acknowledge
+                        next_seq += 1
 
-                    # Unpack the received packet
-                    s_sequence_number, s_acknowledgment_number, s_flags, s_window = Packets.parse_header(packet_header)
+                    try:
+                        # Receive ACK from the server
+                        packet_from_server, _ = clientSocket.recvfrom(1000)
+                        s_sequence_number, s_acknowledgment_number, flags, s_window = Packets.parse_header(packet_from_server[:8])
+                        syn, ack, fin = Packets.parse_flags(flags)
 
-                    # Read 992 bytes of data from the file
-                    data = file.read(992)
-                    if not data:
-                        print("DATA Finished\n")
-                        print("Connection Teardown:\n")
-                        fin = Packets.create_packet(0, 0, 2, 0, b'')
-                        clientSocket.sendto(fin, serverSocket)
-                        print("FIN packet is sent")
-                        active_connection = False
-                        break
-                    
-                    elif (required_ack == s_acknowledgment_number):
-                        # msg now holds a packet, including our custom header and data
-                        print("Acknowledgment number is ", s_acknowledgment_number)
+                        if (ack == 4):
+                            print(f"{Client.now()} -- ACK for packet = {s_acknowledgment_number} is received")
+                            while (starting_sequence <= s_acknowledgment_number): #The loop to check of the sent sequence number is acknowledged by the server.
+                                #If the sequence number is acknowledged the sequence number is removed from the buffer.
+                                buffer.pop(starting_sequence, None) #None is used to handle the error if the key does not exist.  
+                                starting_sequence += 1 #Incrementing the starting_sequence to check the acknowledgment number sent by the server
+                    except timeout:
+                        # Resend all packets in the sliding window if the sent packets are not acknowleged until the occurance of the timeout.
+                        print("Timeout: Resending packets in window")
+                        #If the sequence number is not acknowleged
+                        for seq in range(starting_sequence, next_seq): #The client retransmitts all the packects in the sliding window or buffer until the packets are acknowleged 
+                            clientSocket.sendto(buffer[seq], serverSocket) #buffer[seq] contains all the packets present in the buffer
+                            print(f"{Client.now()} -- retransmitting packet with seq = {seq}")
 
-                        msg = Packets.create_packet(s_acknowledgment_number, s_acknowledgment_number-1, 0, 0, data)
-                        # Send the packet to the server
-                        clientSocket.sendto(msg, serverSocket)
-                        print(f"{Client.now()} -- packet with seq = {s_acknowledgment_number} is sent")
-                        
-                        #Increment the required_ack
-                        required_ack += 1
-                        print(f"Requested packet {required_ack}")
-            
+            # Connection Teardown
+            print("Connection Teardown:\n")
+            fin = Packets.create_packet(0, 0, 2, 0, b'')
+            clientSocket.sendto(fin, serverSocket)
+            print("FIN packet is sent")
+
             while True:
-                # Receive data from the server
-                packet_header, serverAddress = clientSocket.recvfrom(1000)
+                try:
+                    packet_from_server, _ = clientSocket.recvfrom(1000)
+                    s_sequence_number, s_acknowledgment_number, flags, s_window = Packets.parse_header(packet_from_server[:8])
+                    seq, ack, fin = Packets.parse_flags(flags)
 
-                # Unpack the received packet
-                seq, ack, flags, win = Packets.parse_header(packet_header)
+                    if (fin == 2 and ack == 4): #If the timeout occures during the connection teardown phase
+                        print("FIN-ACK packet is received")
+                        print("Connection Closes\n")
+                        break
+                except timeout:
+                    print("Timeout: Resending FIN packet")
+                    clientSocket.sendto(fin, serverSocket)
 
-                # Check the flags to determine the type of packet received
-                syn, ack, fin = Packets.parse_flags(flags)
-
-                if (fin == 2 and ack == 4):
-                    print("FIN-ACK packet is received")
-                    # Send a response back to the server
-                    print("Connection Closes\n")
-                    break 
-
+        except FileNotFoundError:
+            print(f"Error: File '{filename}' not found.")
+            sys.exit()
+        except Exception as e:
+            print(f"Error: {e}")
+            sys.exit()
         except KeyboardInterrupt:
-            print("Connection Terminated")
-
-        clientSocket.close()
-
-if __name__ == "__main__":
-    Client.main()
+            print(f"Keyboard interrupt occured.")
+            sys.exit()
+        finally:
+            clientSocket.close()
+            sys.exit()
