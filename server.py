@@ -15,7 +15,7 @@ class Server:
         return formatted_time
 
     @staticmethod
-    def main(serverIP, serverPort):
+    def main(serverIP, serverPort, discard_packet):
         try:
             serverSocket = socket(AF_INET, SOCK_DGRAM)
             serverSocket.bind((serverIP, serverPort))
@@ -54,18 +54,22 @@ class Server:
                     break
 
                 elif (c_sequence_number == required_seq):  # Correct packet received
-                    totalfile += packet_data
-                    total_data_received += len(packet_data)
-                    print(f"{Server.now()} -- packet {c_sequence_number} is received")
-                    print(f"{Server.now()} -- sending ack for the received {c_sequence_number}")
-                    required_seq += 1
-                    ack_packet = Packets.create_packet(0, required_seq, 4, serverWindow, b'')
-                    serverSocket.sendto(ack_packet, clientAddress)
+                    if (c_sequence_number == discard_packet):
+                        discard_packet -= 1
+                    else:
+                        totalfile += packet_data
+                        total_data_received += len(packet_data)
+                        print(f"{Server.now()} -- packet {c_sequence_number} is received")
+                        print(f"{Server.now()} -- sending ack for the received {c_sequence_number}")
+                        ack_packet = Packets.create_packet(0, required_seq, 4, serverWindow, b'')
+                        serverSocket.sendto(ack_packet, clientAddress)
+                        print(f"ack which is sent is {required_seq}")
+                        required_seq += 1
 
                 else:  # Out-of-order or duplicate packet
                     print(f"{Server.now()} -- out-of-order or duplicate packet {c_sequence_number} is received")
-                    # Resend ACK for the last correctly received packet
-                    ack_packet = Packets.create_packet(0, required_seq, 4, serverWindow, b'')
+                    # Resending ACK for the last correctly received packet
+                    ack_packet = Packets.create_packet(0, required_seq-1, 4, serverWindow, b'')
                     serverSocket.sendto(ack_packet, clientAddress)
 
             # Write the received file to disk
@@ -84,6 +88,8 @@ class Server:
             sys.exit()
         except Exception as e:
             print(f"Error: {e}")
+            sys.exit()
+        except timeout:
             sys.exit()
         finally:
             serverSocket.close()
