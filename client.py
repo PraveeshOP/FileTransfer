@@ -16,6 +16,25 @@ class Client:
 
     @staticmethod
     def main(filename, serverIP, serverPort, windowSize):
+        # Description: 
+        # This is the main client function
+        # Arguments:
+        # filename: name of the file that is transmitted 
+        # serverIP: holds the ip address of the server
+        # serverPort: port number of the server
+        # windowSize: the actual window side of the client or sliding window, it means that the chunks that 
+        # can be sent over is equal to the sliding window.
+        # This method:
+        # 1. Creates the UDP socket for the Client.
+        # 2. Sets the timeout of 0.4 sec.
+        # 3. Connects to the server Socket.
+        # 4. Does the three way handshake to establish the connection
+        # 5. Divides the file in the small chunks and sends it to the server
+        # 6. Gets the acknowledgement of the received packets from the server
+        # 7. If the acknowledgement of the sent packet is not received during the timeout, resends the packet
+        # 8. Prints all the details in the terminal
+        # 9. After the completation of the file sends the fin packet to the server
+        # 10. After receiving the fin-ack from the server closer the client socket and exit the program
         try:
             clientSocket = socket(AF_INET, SOCK_DGRAM)
             clientSocket.settimeout(0.4)  # Set timeout to 400ms
@@ -120,7 +139,7 @@ class Client:
             print(f"Error: {e}")
             sys.exit()
         except KeyboardInterrupt:
-            print(f"Keyboard interrupt occured.")
+            print(f"\nKeyboard interrupt occured.\n")
             sys.exit()
         finally:
             clientSocket.close()
