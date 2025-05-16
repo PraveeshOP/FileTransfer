@@ -24,6 +24,14 @@ parser.add_argument('-d', '--discard', metavar='', type=int, help="Please provid
 args = parser.parse_args()
 
 def main():
+        # This is the main application that is runned
+        # Arguments:
+        # This program takes the command-line argument
+        # To invoke the server: python3 application.py -s -i 127.0.0.1 -p 12345 -d 1838 (-d is the optional argument)
+        # To invoke the client: python3 application.py -c -f iceland-safiqul.jpg -i 127.0.0.1 -p 12345 -w 5 (-w is the optional argument)
+        # This method:
+        # Invokes the client and the server with the right flag, else sends the error messege
+
     if args.server:
         # If -s is provided, run the Server's main method
         Server.main(args.IP, args.port, args.discard)

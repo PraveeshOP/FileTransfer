@@ -29,27 +29,35 @@ class Client:
         # 2. Sets the timeout of 0.4 sec.
         # 3. Connects to the server Socket.
         # 4. Does the three way handshake to establish the connection
+        # If it does not receives the syn-ack from the server, closes the socket and exista the program
         # 5. Divides the file in the small chunks and sends it to the server
         # 6. Gets the acknowledgement of the received packets from the server
         # 7. If the acknowledgement of the sent packet is not received during the timeout, resends the packet
         # 8. Prints all the details in the terminal
         # 9. After the completation of the file sends the fin packet to the server
         # 10. After receiving the fin-ack from the server closer the client socket and exit the program
+        # 11. If the file is not found exits the program
+        # 12. If some error occures, exits the program
+        # 13. If keyboard interruption occures, exits the program
         try:
             clientSocket = socket(AF_INET, SOCK_DGRAM)
             clientSocket.settimeout(0.4)  # Set timeout to 400ms
             serverSocket = (serverIP, serverPort)
+
+            if (windowSize == None):
+                windowSize = 3 #Default window size if the windowSize is not passed as the command-line argument
+            
             print("\nConnection Establishment Phase:\n")
 
-            # Send SYN packet
+            # Sending SYN packet
             syn = Packets.create_packet(0, 0, 8, 0, b'')
             clientSocket.sendto(syn, serverSocket)
             print("SYN packet is sent")
 
             while True:
                 try:
-                    packet_from_server, _ = clientSocket.recvfrom(1000)
-                    s_sequence_number, s_acknowledgment_number, flags, s_window = Packets.parse_header(packet_from_server[:8])
+                    packet_from_server, serverAddress = clientSocket.recvfrom(1000) #Receiving the packets from the server
+                    s_sequence_number, s_acknowledgment_number, flags, s_window = Packets.parse_header(packet_from_server[:8]) #The first 8 bytes are the packet header
                     syn, ack, fin = Packets.parse_flags(flags)
 
                     if syn == 8 and ack == 4:

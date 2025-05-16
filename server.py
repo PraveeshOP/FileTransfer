@@ -19,10 +19,10 @@ class Server:
 # Description: 
         # This is the main server function
         # Arguments:
-        # filename: name of the file that is transmitted 
-        # serverIP: holds the ip address of the server
-        # serverPort: port number of the server
-        # discard_packet: the packet that is discarded when it is written as the argument
+        # filename: name of the file that is transmitted, it is required 
+        # serverIP: holds the ip address of the server, it is required
+        # serverPort: port number of the server, it is required
+        # discard_packet: the packet that is discarded when it is written as the argument, it is optional
         # This method:
         # 1. Creates the UDP socket for the Server.
         # 2. Does the three way handshake to establish the connection with the client
@@ -32,7 +32,9 @@ class Server:
         # 6. Prints all the details in the terminal
         # 7. After receiving the fin from the client, sends fin-ack to the client
         # 8. Calculate the total throughput with the formula: throughput = (total_data_received * 8) / (run_time * 1_000_000)
-        # 9. Prints the throughput in the terminal, closes the server socket and exists the program
+        # 9. Prints the throughput in the terminal, closes the server socket and exits the program
+        # 10. If some error occures, exits the program
+        # 11. If Keyboard interruption occures, exits the program
 
         try:
             serverSocket = socket(AF_INET, SOCK_DGRAM)
@@ -46,9 +48,9 @@ class Server:
 
             while True:
                 packet, clientAddress = serverSocket.recvfrom(1000)
-                packet_header = packet[:8]
+                packet_header = packet[:8] #The first 8 bytes are the packet header
                 c_sequence_number, c_acknowledgment_number, c_flags, c_window = Packets.parse_header(packet_header)
-                packet_data = packet[8:]  # Extract data from the packet
+                packet_data = packet[8:]  # Extracting data from the packet, rest 992 bytes are the  packet data
 
                 # Parse flags
                 syn, ack, fin = Packets.parse_flags(c_flags)
@@ -81,7 +83,6 @@ class Server:
                         print(f"{Server.now()} -- sending ack for the received {c_sequence_number}")
                         ack_packet = Packets.create_packet(0, required_seq, 4, serverWindow, b'')
                         serverSocket.sendto(ack_packet, clientAddress)
-                        print(f"ack which is sent is {required_seq}")
                         required_seq += 1
 
                 else:  # Out-of-order or duplicate packet
