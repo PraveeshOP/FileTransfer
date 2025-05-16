@@ -39,6 +39,7 @@ class Server:
         try:
             serverSocket = socket(AF_INET, SOCK_DGRAM)
             serverSocket.bind((serverIP, serverPort))
+            serverSocket.settimeout(10) #If there is any intrruption during the file transfer then timeout occurs in the server side and terminates the program
 
             required_seq = 1  # Expected sequence number
             totalfile = b""  # Byte string to store received file data
@@ -107,6 +108,9 @@ class Server:
             sys.exit()
         except Exception as e:
             print(f"Error: {e}")
+            sys.exit()
+        except timeout:
+            print("Timeout occured")
             sys.exit()
         finally:
             serverSocket.close()
