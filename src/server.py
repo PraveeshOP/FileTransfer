@@ -92,7 +92,7 @@ class Server:
                     serverSocket.sendto(ack_packet, clientAddress)
 
             # Write the received file to disk
-            with open("output_file", "wb") as output_file:
+            with open("output_file.png", "wb") as output_file:
                 output_file.write(totalfile)
 
             # Calculate throughput
