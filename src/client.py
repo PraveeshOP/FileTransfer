@@ -132,12 +132,13 @@ class Client:
                     s_sequence_number, s_acknowledgment_number, flags, s_window = Packets.parse_header(packet_from_server[:8])
                     seq, ack, fin = Packets.parse_flags(flags)
 
-                    if (fin == 2 and ack == 4): #If the timeout occures during the connection teardown phase
+                    if (ack == 4): #If the timeout occures during the connection teardown phase
                         print("FIN-ACK packet is received")
                         print("Connection Closes\n")
                         break
                 except timeout:
                     print("Timeout: Resending FIN packet")
+                    fin = Packets.create_packet(0, 0, 2, 0, b'') # Retransmitting the fin packet
                     clientSocket.sendto(fin, serverSocket)
 
         except FileNotFoundError:

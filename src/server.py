@@ -69,7 +69,7 @@ class Server:
 
                 elif (fin == 2):  # FIN packet received
                     print("\nFIN packet is received")
-                    fin_ack = Packets.create_packet(0, 0, 6, 0, b'')
+                    fin_ack = Packets.create_packet(0, 0, 4, 0, b'')
                     serverSocket.sendto(fin_ack, clientAddress)
                     print("FIN-ACK packet is sent")
                     break
