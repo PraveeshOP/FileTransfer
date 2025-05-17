@@ -43,7 +43,7 @@ class Server:
 
             required_seq = 1  # Expected sequence number
             totalfile = b""  # Byte string to store received file data
-            serverWindow = 15  # Server's advertised window size
+            serverWindow = 15  # Server's window size
             start_time = None  # Start time for throughput calculation
             total_data_received = 0  # Total data received in bytes
 
@@ -93,7 +93,8 @@ class Server:
                     serverSocket.sendto(ack_packet, clientAddress)
 
             # Write the received file to disk
-            with open("output_file.png", "wb") as output_file:
+            # If the file is image file then must write the image extension for the file to dispaly image. For example, .png, .jpg, etc.
+            with open("output_file", "wb") as output_file:
                 output_file.write(totalfile)
 
             # Calculate throughput
