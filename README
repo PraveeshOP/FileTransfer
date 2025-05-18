@@ -1,0 +1,12 @@
+DATA2410 Reliable Transport Protocol (DRTP)
+
+To run the application:
+
+1. Run the simple-topo.py with the command python3 simple-topo.py. This runs the mininet. But, you must be logged in as a root to run it.
+2. Then, open the h1 and h2 terminal with the help of xterm h1 h2.
+3. See the ip address of the h2 with the help of ifconfig. Then, invoke the server in the h2 terminal by using 
+python3 application.py -s -i 10.0.1.2 -p 12345 (-d 3)
+-s invokes the server, -i is the ip address of the h2 node and -p is the port number where the application is running. -d flag is the optional argument to discard the packet with the respective packet number. In, this case packet number 3.
+4. Invoke the client in the h1 terminal with the help of
+python3 application.py -c -f filename -i 10.0.1.2 -p 12345 (-w 5)
+-c invokes the client, -f takes the filename which is getting transmitted, -i is the ip address of the h2 node and -p is the port number where the application is running. -w is the optional flag that changes the sliding window size, by default its value is given 3 in the application.
