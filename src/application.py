@@ -1,6 +1,7 @@
 from server import Server
 from client import Client
 import argparse
+import re
 
 parser = argparse.ArgumentParser(description="This is the whole application!")
 
@@ -31,19 +32,26 @@ def main():
         # To invoke the client: python3 application.py -c -f iceland-safiqul.jpg -i 127.0.0.1 -p 12345 -w 5 (-w is the optional argument)
         # This method:
         # Invokes the client and the server with the right flag, else sends the error messege
+        # If the format of the IP address and port number is wrong then the program does not starts
 
-    if args.server:
-        # If -s is provided, run the Server's main method
-        Server.main(args.IP, args.port, args.discard)
-    elif args.client:
-        # If -c is provided, run the Client's main method
-        # Check if filename is provided, if it is not provided then give error message and return
-        if not args.filename:
-            print("Error: Please provide a filename using the -f or --filename argument.")
-            return
-        Client.main(args.filename, args.IP, args.port, args.window)
+    ip_expression = r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}" #Expression to check the correct format of IP address
+    port_expression = r"\d{1,5}" #Expression to chck the corect format of port number
+
+    if (re.fullmatch(ip_expression, args.IP) and re.fullmatch(port_expression, str(args.port))):
+        if args.server:
+            # If -s is provided, run the Server's main method
+            Server.main(args.IP, args.port, args.discard)
+        elif args.client:
+            # If -c is provided, run the Client's main method
+            # Check if filename is provided, if it is not provided then give error message and return
+            if not args.filename:
+                print("Error: Please provide a filename using the -f or --filename argument.")
+                return
+            Client.main(args.filename, args.IP, args.port, args.window)
+        else:
+            print("Error: Please specify a role. Use -s for server or -c for client. Use -h for help.")
     else:
-        print("Error: Please specify a role. Use -s for server or -c for client. Use -h for help.")
+        print("Please input the correct format for the IP address and port number.")
 
 if __name__ == '__main__':
     main()
